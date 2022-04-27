@@ -60,6 +60,10 @@ platform :ios do
         }
       )
     ensure
+      unless Helper.ci?
+        UI.message("Not running on CI, skipping delete_keychain")
+        next
+      end
       delete_keychain(name: ENV['MATCH_KEYCHAIN_NAME'])
     end
   end
@@ -74,59 +78,42 @@ platform :ios do
       match(type: "appstore", clone_branch_directly: true, readonly: true)
       gym(scheme: ENV['XCODE_SCHEME'], skip_profile_detection: true) # Build your app - more options available
     ensure
+      unless Helper.ci?
+        UI.message("Not running on CI, skipping delete_keychain")
+        next
+      end
       delete_keychain(name: ENV['MATCH_KEYCHAIN_NAME'])
     end
   end
-
-  desc "Submit a new Beta Build to Fabric"
+  
+  desc "Submit a new Beta Build to Firebase"
   desc "This will also make sure the profile is up to date"
-  lane :beta_fabric do |options|
-    begin
-      if !options[:skip_setup_circle_ci]
-        setup_circle_ci
-      end
-      xcode_select("/Applications/Xcode#{ENV['XCODE_VERSION'].nil? ? "" : "-" + ENV['XCODE_VERSION']}.app")
-      match(type: "adhoc", clone_branch_directly: true, readonly: true)
-      crashlytics(api_token: ENV['FABRIC_API_TOKEN'], build_secret: ENV['FABRIC_BUILD_SECRET'])
-      upload_symbols_to_crashlytics(api_token: ENV['FABRIC_API_TOKEN'])
-    ensure
-      delete_keychain(name: ENV['MATCH_KEYCHAIN_NAME'])
+  lane :beta_firebase do |options|
+    firebase_app_distribution(
+      app: ENV['FIREBASE_APP'],
+      firebase_cli_token: ENV['FIREBASE_CLI_TOKEN'],
+      groups: ENV['FIREBASE_GROUPS']
+    )
+    unless ENV['GOOGLE_SERVICE_PLIST_PATH'].nil?
+      upload_symbols_to_crashlytics(gsp_path: ENV["GOOGLE_SERVICE_PLIST_PATH"])
     end
   end
 
   desc "Submit a new Beta Build to fir.im"
   desc "This will also make sure the profile is up to date"
   lane :beta_firim do |options|
-    begin
-      if !options[:skip_setup_circle_ci]
-        setup_circle_ci
-      end
-      xcode_select("/Applications/Xcode#{ENV['XCODE_VERSION'].nil? ? "" : "-" + ENV['XCODE_VERSION']}.app")
-      match(type: "adhoc", clone_branch_directly: true, readonly: true)
-      firim(firim_api_token: ENV['FIRIM_API_TOKEN'])
-      unless ENV['FABRIC_API_TOKEN'].nil?
-        upload_symbols_to_crashlytics(api_token: ENV['FABRIC_API_TOKEN'])
-      end
-    ensure
-      delete_keychain(name: ENV['MATCH_KEYCHAIN_NAME'])
+    firim(firim_api_token: ENV['FIRIM_API_TOKEN'])
+    unless ENV['GOOGLE_SERVICE_PLIST_PATH'].nil?
+      upload_symbols_to_crashlytics(gsp_path: ENV["GOOGLE_SERVICE_PLIST_PATH"])
     end
   end
 
   desc "Submit a new Beta Build to Pgyer"
   desc "This will also make sure the profile is up to date"
   lane :beta_pgyer do |options|
-    begin
-      if !options[:skip_setup_circle_ci]
-        setup_circle_ci
-      end
-      xcode_select("/Applications/Xcode#{ENV['XCODE_VERSION'].nil? ? "" : "-" + ENV['XCODE_VERSION']}.app")
-      match(type: "adhoc", clone_branch_directly: true, readonly: true)
-      pgyer(api_key: ENV['PGYER_API_KEY'], user_key: ENV['PGYER_USER_KEY'])
-      unless ENV['FABRIC_API_TOKEN'].nil?
-        upload_symbols_to_crashlytics(api_token: ENV['FABRIC_API_TOKEN'])
-      end
-    ensure
-      delete_keychain(name: ENV['MATCH_KEYCHAIN_NAME'])
+    pgyer(api_key: ENV['PGYER_API_KEY'], user_key: ENV['PGYER_USER_KEY'])
+    unless ENV['GOOGLE_SERVICE_PLIST_PATH'].nil?
+      upload_symbols_to_crashlytics(gsp_path: ENV["GOOGLE_SERVICE_PLIST_PATH"])
     end
   end
 
@@ -138,12 +125,12 @@ platform :ios do
         setup_circle_ci
       end
       xcode_select("/Applications/Xcode#{ENV['XCODE_VERSION'].nil? ? "" : "-" + ENV['XCODE_VERSION']}.app")
-      match(type: "appstore", clone_branch_directly: true, readonly: true)
       pilot(skip_waiting_for_build_processing: true)
-      unless ENV['FABRIC_API_TOKEN'].nil?
-        upload_symbols_to_crashlytics(api_token: ENV['FABRIC_API_TOKEN'])
-      end
     ensure
+      unless Helper.ci?
+        UI.message("Not running on CI, skipping delete_keychain")
+        next
+      end
       delete_keychain(name: ENV['MATCH_KEYCHAIN_NAME'])
     end
   end
@@ -162,6 +149,14 @@ platform :ios do
     refresh_profiles
     sh('rm -f ../devices.txt')
   end
+  
+  lane :register_a_device_without_apple_certs do
+    register_devices(
+      devices_file: "./devices.txt"
+    )
+    refresh_profiles_without_apple_certs
+    sh('rm -f ../devices.txt')
+  end
 
   # A helper lane for refreshing provisioning profiles.
   lane :refresh_profiles do
@@ -173,6 +168,18 @@ platform :ios do
       type: "adhoc",
       force: true,
       clone_branch_directly: true)
+  end
+  
+  # A helper lane for refreshing provisioning profiles.
+  lane :refresh_profiles_without_apple_certs do
+    match(
+      type: "development",
+      force: true,
+      generate_apple_certs: false)
+    match(
+      type: "adhoc",
+      force: true,
+      generate_apple_certs: false)
   end
 end
 
