@@ -1,27 +1,26 @@
-# Customise this file, documentation can be found here:
-# https://github.com/fastlane/fastlane/tree/master/fastlane/docs
-# All available actions: https://docs.fastlane.tools/actions
-# can also be listed using the `fastlane actions` command
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
 
-# Change the syntax highlighting to Ruby
-# All lines starting with a # are ignored when running `fastlane`
-
-# If you want to automatically update fastlane if a new version is available:
+# Uncomment the line if you want fastlane to automatically update itself
 # update_fastlane
 
-# This is the minimum version number required.
-# Update this, if you use features of a newer version
 fastlane_version "2.62.0"
 
-default_platform :ios
+default_platform(:ios)
 
 platform :ios do
-  
-  desc "Runs all the tests"
-  lane :test do
-    scan
-  end
-  
+  desc "Description of what the lane does"
+##
+
   lane :archive_adhoc do |options|
     begin
       # 設定Keychain
@@ -67,8 +66,8 @@ platform :ios do
       delete_keychain(name: ENV['MATCH_KEYCHAIN_NAME'])
     end
   end
-  
-  lane :archive_appstore do |options|
+
+lane :archive_appstore do |options|
     begin
       if !options[:skip_setup_circle_ci]
         setup_circle_ci
@@ -99,25 +98,7 @@ platform :ios do
     end
   end
 
-  desc "Submit a new Beta Build to fir.im"
-  desc "This will also make sure the profile is up to date"
-  lane :beta_firim do |options|
-    firim(firim_api_token: ENV['FIRIM_API_TOKEN'])
-    unless ENV['GOOGLE_SERVICE_PLIST_PATH'].nil?
-      upload_symbols_to_crashlytics(gsp_path: ENV["GOOGLE_SERVICE_PLIST_PATH"])
-    end
-  end
-
-  desc "Submit a new Beta Build to Pgyer"
-  desc "This will also make sure the profile is up to date"
-  lane :beta_pgyer do |options|
-    pgyer(api_key: ENV['PGYER_API_KEY'], user_key: ENV['PGYER_USER_KEY'])
-    unless ENV['GOOGLE_SERVICE_PLIST_PATH'].nil?
-      upload_symbols_to_crashlytics(gsp_path: ENV["GOOGLE_SERVICE_PLIST_PATH"])
-    end
-  end
-
-  desc "Submit a new Beta Build to Apple TestFlight"
+desc "Submit a new Beta Build to Apple TestFlight"
   desc "This will also make sure the profile is up to date"
   lane :beta_testflight do |options|
     begin
@@ -135,7 +116,7 @@ platform :ios do
     end
   end
 
-  desc "Generate devices.txt"
+desc "Generate devices.txt"
   lane :add_device do
     sh('echo "Device ID	Device Name" >> ../devices.txt')
     sh('echo "A123456789012345678901234567890123456789	NAME1" >> ../devices.txt')
@@ -147,14 +128,6 @@ platform :ios do
       devices_file: "./devices.txt"
     )
     refresh_profiles
-    sh('rm -f ../devices.txt')
-  end
-  
-  lane :register_a_device_without_apple_certs do
-    register_devices(
-      devices_file: "./devices.txt"
-    )
-    refresh_profiles_without_apple_certs
     sh('rm -f ../devices.txt')
   end
 
@@ -169,23 +142,7 @@ platform :ios do
       force: true,
       clone_branch_directly: true)
   end
-  
-  # A helper lane for refreshing provisioning profiles.
-  lane :refresh_profiles_without_apple_certs do
-    match(
-      type: "development",
-      force: true,
-      generate_apple_certs: false)
-    match(
-      type: "adhoc",
-      force: true,
-      generate_apple_certs: false)
-  end
+
+
+##
 end
-
-
-# More information about multiple platforms in fastlane: https://github.com/fastlane/fastlane/blob/master/fastlane/docs/Platforms.md
-# All available actions: https://docs.fastlane.tools/actions
-
-# fastlane reports which actions are used. No personal data is recorded. 
-# Learn more at https://github.com/fastlane/fastlane#metrics
